@@ -26,6 +26,13 @@ neoForge {
     }
 }
 
+// Required for JarJar embedding: jars must declare a module name
+tasks.named('jar', Jar) {
+    manifest {
+        attributes 'Automatic-Module-Name': 'kwahs.core'
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }

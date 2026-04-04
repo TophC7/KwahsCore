@@ -19,8 +19,8 @@ dist/
 *.swo
 *~
 .DS_Store
+.history/
 
 # Nix
 .direnv/
-
 .claude/
