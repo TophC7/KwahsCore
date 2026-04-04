@@ -9,12 +9,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.tabs.GridLayoutTab;
 import net.minecraft.client.gui.layouts.LayoutElement;
+import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.layouts.SpacerElement;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -34,7 +37,9 @@ public class ConfigTab extends GridLayoutTab {
 
   private static final int COL_WIDTH = 200;
   private static final int COL_GAP = 12;
+  private static final int FIELD_WIDTH = 80;
   private static final int SECTION_TITLE_COLOR = 0xFFFFFF;
+  private static final int ERROR_TEXT_COLOR = 0xFF5555;
 
   private final Set<List<String>> commonPaths;
   private final List<AbstractWidget> commonWidgets = new ArrayList<>();
@@ -151,6 +156,43 @@ public class ConfigTab extends GridLayoutTab {
     var slider = ConfigSlider.ofPercent(COL_WIDTH, label, min, max,
         SafeConfig.getDouble(configVal, (min + max) / 2), val -> configVal.set(val));
     return trackIfCommon(slider, configVal);
+  }
+
+  /**
+   * Labeled integer text field for open-ended numeric ranges where a slider
+   * would be impractical. Validates on every keystroke: valid in-range values
+   * update the config immediately, out-of-range text turns red.
+   */
+  public LayoutElement intField(String label, int min, int max,
+                                ModConfigSpec.IntValue configVal) {
+    int current = SafeConfig.getInt(configVal, min);
+    Font font = Minecraft.getInstance().font;
+
+    EditBox field = new EditBox(font, FIELD_WIDTH, 20, Component.literal(label));
+    field.setValue(String.valueOf(current));
+    field.setMaxLength(10);
+    field.setFilter(s -> s.isEmpty() || s.matches("\\d+"));
+    field.setResponder(text -> {
+      try {
+        int val = Integer.parseInt(text);
+        if (val >= min && val <= max) {
+          configVal.set(val);
+          field.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
+        } else {
+          field.setTextColor(ERROR_TEXT_COLOR);
+        }
+      } catch (NumberFormatException e) {
+        if (!text.isEmpty()) field.setTextColor(ERROR_TEXT_COLOR);
+      }
+    });
+    trackIfCommon(field, configVal);
+
+    int labelWidth = COL_WIDTH - FIELD_WIDTH - 4;
+    LinearLayout row = LinearLayout.horizontal().spacing(4);
+    row.addChild(new StringWidget(labelWidth, 20,
+        Component.literal(label), font).alignLeft());
+    row.addChild(field);
+    return row;
   }
 
   public Button button(String label, Consumer<Button> onPress) {

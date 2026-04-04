@@ -104,7 +104,7 @@ public class KwahsConfigScreen extends Screen {
     if (showServerNote) {
       graphics.drawString(this.font,
           "* Greyed settings are controlled by the server",
-          4, this.height - 8, FOOTNOTE_COLOR, false);
+          4, this.height - 11, FOOTNOTE_COLOR, false);
     }
   }
 
