@@ -81,6 +81,13 @@ public class ConfigTab extends GridLayoutTab {
     return this;
   }
 
+  /** Adds a widget spanning both columns and advances the row. */
+  public ConfigTab center(LayoutElement widget) {
+    layout.addChild(widget, row, 0, 1, 2);
+    row++;
+    return this;
+  }
+
   public ConfigTab left(LayoutElement widget) {
     layout.addChild(widget, row, 0);
     return this;
@@ -154,6 +161,18 @@ public class ConfigTab extends GridLayoutTab {
   public ConfigSlider percentSlider(String label, double min, double max,
                                     ModConfigSpec.DoubleValue configVal) {
     var slider = ConfigSlider.ofPercent(COL_WIDTH, label, min, max,
+        SafeConfig.getDouble(configVal, (min + max) / 2), val -> configVal.set(val));
+    return trackIfCommon(slider, configVal);
+  }
+
+  /**
+   * Double-precision slider with a custom suffix and 2-decimal formatting.
+   * Use for tuning values that aren't percentages (e.g. "Strength: 0.05").
+   */
+  public ConfigSlider doubleSlider(String label, String suffix,
+                                   double min, double max,
+                                   ModConfigSpec.DoubleValue configVal) {
+    var slider = ConfigSlider.ofDouble(COL_WIDTH, label, suffix, min, max,
         SafeConfig.getDouble(configVal, (min + max) / 2), val -> configVal.set(val));
     return trackIfCommon(slider, configVal);
   }

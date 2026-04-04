@@ -71,4 +71,13 @@ public class ConfigSlider extends AbstractSliderButton {
         v -> label + ": " + Math.round(v * 100) + "%",
         onChange);
   }
+
+  /** Double slider with 2-decimal formatting and a custom suffix. */
+  public static ConfigSlider ofDouble(int width, String label, String suffix,
+                                      double min, double max, double initial,
+                                      DoubleConsumer onChange) {
+    return new ConfigSlider(width, min, max, initial,
+        v -> String.format("%s: %.2f%s", label, v, suffix),
+        onChange);
+  }
 }
