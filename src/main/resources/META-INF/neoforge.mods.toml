@@ -1,0 +1,23 @@
+modLoader = "lowcodefml"
+loaderVersion = "[1,)"
+license = "GPL-3.0-or-later"
+
+[[mods]]
+modId = "kwahs_core"
+version = "${file.jarVersion}"
+displayName = "Kwahs Core"
+description = "Shared library for Kwahson mods."
+
+[[dependencies.kwahs_core]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.kwahs_core]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,)"
+ordering = "NONE"
+side = "BOTH"
