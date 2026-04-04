@@ -74,7 +74,7 @@ public class ConfigTab extends GridLayoutTab {
   // WIDGET FACTORIES //
 
   public CycleButton<Boolean> toggle(String label, ModConfigSpec.BooleanValue configVal) {
-    return CycleButton.onOffBuilder(configVal.get())
+    return CycleButton.onOffBuilder(SafeConfig.getBool(configVal, false))
         .create(0, 0, COL_WIDTH, 20, Component.literal(label),
             (btn, val) -> configVal.set(val));
   }
@@ -82,9 +82,10 @@ public class ConfigTab extends GridLayoutTab {
   public <E extends Enum<E>> CycleButton<E> enumButton(
       String label, ModConfigSpec.EnumValue<E> configVal,
       Function<E, String> labelFn, E[] values) {
+    E initial = SafeConfig.getEnum(configVal, values[0]);
     return CycleButton.<E>builder(v -> Component.literal(labelFn.apply(v)))
         .withValues(values)
-        .withInitialValue(configVal.get())
+        .withInitialValue(initial)
         .create(0, 0, COL_WIDTH, 20, Component.literal(label),
             (btn, val) -> configVal.set(val));
   }
@@ -92,9 +93,10 @@ public class ConfigTab extends GridLayoutTab {
   public CycleButton<Integer> intCycle(
       String label, ModConfigSpec.IntValue configVal,
       IntFunction<String> formatter, Integer[] values) {
+    int initial = SafeConfig.getInt(configVal, values[0]);
     return CycleButton.<Integer>builder(v -> Component.literal(formatter.apply(v)))
         .withValues(values)
-        .withInitialValue(configVal.get())
+        .withInitialValue(initial)
         .create(0, 0, COL_WIDTH, 20, Component.literal(label),
             (btn, val) -> configVal.set(val));
   }
@@ -118,13 +120,13 @@ public class ConfigTab extends GridLayoutTab {
                                 int min, int max, int step,
                                 ModConfigSpec.IntValue configVal) {
     return ConfigSlider.ofInt(COL_WIDTH, label, suffix, min, max, step,
-        configVal.get(), val -> configVal.set(val));
+        SafeConfig.getInt(configVal, (min + max) / 2), val -> configVal.set(val));
   }
 
   public ConfigSlider percentSlider(String label, double min, double max,
                                     ModConfigSpec.DoubleValue configVal) {
     return ConfigSlider.ofPercent(COL_WIDTH, label, min, max,
-        configVal.get(), val -> configVal.set(val));
+        SafeConfig.getFloat(configVal, (float) ((min + max) / 2)), val -> configVal.set(val));
   }
 
   public Button button(String label, Consumer<Button> onPress) {
