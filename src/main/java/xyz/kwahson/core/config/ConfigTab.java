@@ -1,0 +1,141 @@
+package xyz.kwahson.core.config;
+
+import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.StringWidget;
+import net.minecraft.client.gui.components.tabs.GridLayoutTab;
+import net.minecraft.client.gui.layouts.LayoutElement;
+import net.minecraft.client.gui.layouts.SpacerElement;
+import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.common.ModConfigSpec;
+
+/**
+ * A config screen tab with a two-column grid layout and helper methods
+ * for common widget types (cycle buttons, sliders, toggles, sections).
+ *
+ * <p>Wraps vanilla's {@link GridLayoutTab}, exposing the protected layout
+ * field and providing a fluent API for building config UIs.
+ */
+public class ConfigTab extends GridLayoutTab {
+
+  private static final int COL_WIDTH = 200;
+  private static final int COL_GAP = 12;
+  private static final int SECTION_TITLE_COLOR = 0xFFFFFF;
+
+  private int row = 0;
+
+  public ConfigTab(String title) {
+    super(Component.literal(title));
+    this.layout.rowSpacing(4).columnSpacing(COL_GAP);
+  }
+
+  // LAYOUT HELPERS //
+
+  public ConfigTab sections(String left, String right) {
+    layout.addChild(sectionTitle(left), row, 0);
+    layout.addChild(sectionTitle(right), row, 1);
+    row++;
+    return this;
+  }
+
+  public ConfigTab section(String title) {
+    layout.addChild(sectionTitle(title), row, 0, 1, 2);
+    row++;
+    return this;
+  }
+
+  public ConfigTab spacer(int height) {
+    layout.addChild(SpacerElement.height(height), row, 0, 1, 2);
+    row++;
+    return this;
+  }
+
+  public ConfigTab left(LayoutElement widget) {
+    layout.addChild(widget, row, 0);
+    return this;
+  }
+
+  public ConfigTab right(LayoutElement widget) {
+    layout.addChild(widget, row, 1);
+    return this;
+  }
+
+  public ConfigTab nextRow() {
+    row++;
+    return this;
+  }
+
+  // WIDGET FACTORIES //
+
+  public CycleButton<Boolean> toggle(String label, ModConfigSpec.BooleanValue configVal) {
+    return CycleButton.onOffBuilder(configVal.get())
+        .create(0, 0, COL_WIDTH, 20, Component.literal(label),
+            (btn, val) -> configVal.set(val));
+  }
+
+  public <E extends Enum<E>> CycleButton<E> enumButton(
+      String label, ModConfigSpec.EnumValue<E> configVal,
+      Function<E, String> labelFn, E[] values) {
+    return CycleButton.<E>builder(v -> Component.literal(labelFn.apply(v)))
+        .withValues(values)
+        .withInitialValue(configVal.get())
+        .create(0, 0, COL_WIDTH, 20, Component.literal(label),
+            (btn, val) -> configVal.set(val));
+  }
+
+  public CycleButton<Integer> intCycle(
+      String label, ModConfigSpec.IntValue configVal,
+      IntFunction<String> formatter, Integer[] values) {
+    return CycleButton.<Integer>builder(v -> Component.literal(formatter.apply(v)))
+        .withValues(values)
+        .withInitialValue(configVal.get())
+        .create(0, 0, COL_WIDTH, 20, Component.literal(label),
+            (btn, val) -> configVal.set(val));
+  }
+
+  /**
+   * Generic cycle button for arbitrary value types. Use this when the value
+   * is not backed by a ModConfigSpec enum or int (e.g., record presets).
+   */
+  public <T> CycleButton<T> cycle(
+      String label, T initial, Function<T, String> labelFn,
+      List<T> values, BiConsumer<CycleButton<T>, T> onChange) {
+    return CycleButton.<T>builder(v -> Component.literal(labelFn.apply(v)))
+        .withValues(values)
+        .withInitialValue(initial)
+        .create(0, 0, COL_WIDTH, 20, Component.literal(label),
+            onChange::accept);
+  }
+
+  // snaps to step size
+  public ConfigSlider intSlider(String label, String suffix,
+                                int min, int max, int step,
+                                ModConfigSpec.IntValue configVal) {
+    return ConfigSlider.ofInt(COL_WIDTH, label, suffix, min, max, step,
+        configVal.get(), val -> configVal.set(val));
+  }
+
+  public ConfigSlider percentSlider(String label, double min, double max,
+                                    ModConfigSpec.DoubleValue configVal) {
+    return ConfigSlider.ofPercent(COL_WIDTH, label, min, max,
+        configVal.get(), val -> configVal.set(val));
+  }
+
+  public Button button(String label, Consumer<Button> onPress) {
+    return Button.builder(Component.literal(label), onPress::accept)
+        .width(COL_WIDTH).build();
+  }
+
+  private StringWidget sectionTitle(String text) {
+    return new StringWidget(COL_WIDTH, 14, Component.literal(text),
+        Minecraft.getInstance().font)
+        .setColor(SECTION_TITLE_COLOR)
+        .alignLeft();
+  }
+}
