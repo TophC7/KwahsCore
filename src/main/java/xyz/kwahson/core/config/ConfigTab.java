@@ -126,7 +126,7 @@ public class ConfigTab extends GridLayoutTab {
   public ConfigSlider percentSlider(String label, double min, double max,
                                     ModConfigSpec.DoubleValue configVal) {
     return ConfigSlider.ofPercent(COL_WIDTH, label, min, max,
-        SafeConfig.getFloat(configVal, (float) ((min + max) / 2)), val -> configVal.set(val));
+        SafeConfig.getDouble(configVal, (min + max) / 2), val -> configVal.set(val));
   }
 
   public Button button(String label, Consumer<Button> onPress) {

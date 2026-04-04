@@ -151,11 +151,13 @@ public class ReorderableListScreen extends Screen {
       // Remaining entries (new or no saved order) in definition order
       ordered.addAll(entriesById.values());
 
-      // Apply enabled state
+      // Reconstruct with correct enabled state so EntryData.enabled stays final
       if (savedEnabled != null) {
-        for (EntryData data : ordered) {
-          data.enabled = savedEnabled.contains(data.id);
+        List<EntryData> resolved = new ArrayList<>(ordered.size());
+        for (EntryData d : ordered) {
+          resolved.add(new EntryData(d.id, d.label, savedEnabled.contains(d.id), d.onSettings));
         }
+        ordered = resolved;
       }
 
       return new ReorderableListScreen(title, parent, ordered, onSave);
@@ -167,7 +169,7 @@ public class ReorderableListScreen extends Screen {
   private static class EntryData {
     final String id;
     final String label;
-    boolean enabled;
+    final boolean enabled;
     final Consumer<Screen> onSettings;
 
     EntryData(String id, String label, boolean enabled, Consumer<Screen> onSettings) {
@@ -182,6 +184,12 @@ public class ReorderableListScreen extends Screen {
 
   static class ReorderableListWidget
       extends ObjectSelectionList<ReorderableListWidget.ReorderableEntry> {
+
+    // Hit zone boundaries (x offsets from row left edge). Shared between
+    // mouseClicked and ReorderableEntry.render so they stay in sync.
+    static final int HANDLE_ZONE_END = 14;
+    static final int TOGGLE_ZONE_END = 34;
+    static final int SETTINGS_ZONE_WIDTH = 20;
 
     private int draggedIndex = -1;
 
@@ -207,20 +215,18 @@ public class ReorderableListScreen extends Screen {
           int index = this.children().indexOf(entry);
           int left = this.getRowLeft();
 
-          // Handle area: first 14px of the row
-          if (mouseX >= left && mouseX < left + 14) {
+          if (mouseX >= left && mouseX < left + HANDLE_ZONE_END) {
             this.draggedIndex = index;
             return true;
           }
 
-          // Toggle area: 14-34px
-          if (mouseX >= left + 14 && mouseX < left + 34) {
+          if (mouseX >= left + HANDLE_ZONE_END && mouseX < left + TOGGLE_ZONE_END) {
             entry.toggleEnabled();
             return true;
           }
 
-          // Settings button: last 20px (if present)
-          if (entry.hasSettings() && mouseX >= this.getRowRight() - 20) {
+          if (entry.hasSettings()
+              && mouseX >= this.getRowRight() - SETTINGS_ZONE_WIDTH) {
             entry.openSettings(this.minecraft.screen);
             return true;
           }
@@ -255,6 +261,7 @@ public class ReorderableListScreen extends Screen {
     }
 
     private int getIndexAtY(double mouseY) {
+      // 4px accounts for ObjectSelectionList's internal top padding
       int relY = (int)(mouseY - this.getY()) - 4 + (int)this.getScrollAmount();
       int raw = relY / this.itemHeight;
       return Math.max(0, Math.min(this.children().size() - 1, raw));

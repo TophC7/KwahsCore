@@ -3,8 +3,8 @@ package xyz.kwahson.core.config;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.slf4j.Logger;
@@ -15,29 +15,31 @@ import org.slf4j.LoggerFactory;
  * crash on stale or corrupted config files. Returns the fallback value
  * and logs a warning once per key (not every tick).
  *
- * <p>Also provides {@link #validateOrReset(String, ModConfigSpec, ModConfigSpec.ConfigValue[])}
+ * <p>Also provides {@link #validateOrReset(String, ModConfigSpec, String, ModConfigSpec.ConfigValue[])}
  * to detect corrupted config files at startup and replace them with fresh defaults.
  */
 public final class SafeConfig {
 
   private static final Logger LOG = LoggerFactory.getLogger("KwahsCore");
-  private static final Set<String> WARNED = new HashSet<>();
+  private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
 
   private SafeConfig() {}
 
   /**
    * Validates config by trying to read the given sentinel values. If any
-   * throw a type error, the config file is renamed to {@code .corrupted}
-   * and the game continues with in-memory defaults.
+   * throw, the config file is renamed to {@code .corrupted} and the game
+   * continues with in-memory defaults.
    *
-   * <p>Call this once in the mod constructor, after {@code registerConfig()}.
+   * <p>Call this once on first tick (config is not loaded at construction time).
    * Pass a few representative values that cover different types in your spec.
    *
-   * @param modId     the mod ID (used to find the config file name)
-   * @param spec      the config spec
-   * @param sentinels values to test-read for type correctness
+   * @param modId      the mod ID (used to find the config file name)
+   * @param spec       the config spec
+   * @param configType the config type suffix: "client", "common", or "server"
+   * @param sentinels  values to test-read for type correctness
    */
   public static void validateOrReset(String modId, ModConfigSpec spec,
+                                     String configType,
                                      ModConfigSpec.ConfigValue<?>... sentinels) {
     if (!spec.isLoaded()) return;
 
@@ -45,7 +47,7 @@ public final class SafeConfig {
     for (ModConfigSpec.ConfigValue<?> sentinel : sentinels) {
       try {
         sentinel.get();
-      } catch (ClassCastException | NullPointerException e) {
+      } catch (Exception e) {
         corrupted = true;
         break;
       }
@@ -54,10 +56,11 @@ public final class SafeConfig {
     if (!corrupted) return;
 
     Path configDir = FMLPaths.CONFIGDIR.get();
-    Path configFile = configDir.resolve(modId + "-client.toml");
+    String fileName = modId + "-" + configType + ".toml";
+    Path configFile = configDir.resolve(fileName);
 
     if (Files.exists(configFile)) {
-      Path backup = configDir.resolve(modId + "-client.toml.corrupted");
+      Path backup = configDir.resolve(fileName + ".corrupted");
       try {
         Files.deleteIfExists(backup);
         Files.move(configFile, backup);
@@ -65,13 +68,24 @@ public final class SafeConfig {
             + "Settings will regenerate on next launch.", modId, backup.getFileName());
       } catch (IOException e) {
         LOG.error("[{}] Failed to backup corrupted config: {}", modId, e.getMessage());
-        try { Files.deleteIfExists(configFile); } catch (IOException ignored) {}
+        try {
+          Files.deleteIfExists(configFile);
+        } catch (IOException e2) {
+          LOG.error("[{}] Failed to delete corrupted config after failed backup: {}",
+              modId, e2.getMessage());
+        }
       }
 
       // NeoForge already loaded the bad values into memory for this session.
       // The corrupted file is gone, so next launch will regenerate fresh defaults.
       // This session continues with SafeConfig fallbacks for any bad values.
     }
+  }
+
+  /** Convenience overload that defaults to "client" config type. */
+  public static void validateOrReset(String modId, ModConfigSpec spec,
+                                     ModConfigSpec.ConfigValue<?>... sentinels) {
+    validateOrReset(modId, spec, "client", sentinels);
   }
 
   /** Reads a config value, returning {@code fallback} if the stored type is wrong. */
@@ -109,6 +123,17 @@ public final class SafeConfig {
   public static float getFloat(ModConfigSpec.DoubleValue value, float fallback) {
     try {
       return value.get().floatValue();
+    } catch (ClassCastException | IllegalStateException | NullPointerException e) {
+      warnOnce(e);
+      return fallback;
+    }
+  }
+
+  /** Reads a double config value safely at full precision. */
+  public static double getDouble(ModConfigSpec.DoubleValue value, double fallback) {
+    try {
+      Double result = value.get();
+      return result != null ? result : fallback;
     } catch (ClassCastException | IllegalStateException | NullPointerException e) {
       warnOnce(e);
       return fallback;

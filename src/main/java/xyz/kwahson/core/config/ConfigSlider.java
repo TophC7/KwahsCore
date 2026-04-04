@@ -21,12 +21,19 @@ public class ConfigSlider extends AbstractSliderButton {
 
   public ConfigSlider(int width, double min, double max, double initial,
                       DoubleFunction<String> formatter, DoubleConsumer onChange) {
-    super(0, 0, width, 20, Component.empty(), (initial - min) / (max - min));
+    super(0, 0, width, 20, Component.empty(), normalizeInitial(initial, min, max));
     this.min = min;
     this.max = max;
     this.formatter = formatter;
     this.onChange = onChange;
     updateMessage();
+  }
+
+  /** Normalizes initial value to [0,1], guarding against zero-width range. */
+  private static double normalizeInitial(double initial, double min, double max) {
+    double range = max - min;
+    if (range == 0) return 0;
+    return Mth.clamp((initial - min) / range, 0.0, 1.0);
   }
 
   /** The denormalized value in the [min, max] range. */
