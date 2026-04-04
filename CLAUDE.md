@@ -10,25 +10,58 @@ Multi-mod NeoForge 1.21.1 workspace. All mods share KwahsCore as a build-time li
 
 ## KwahsCore Integration
 
-KwahsCore is a shared library shaded into each mod's jar. Users never download it separately.
+KwahsCore is a shared library embedded into each mod's jar via JarJar. Users never download it separately. When multiple mods are installed, NeoForge's JarInJar locator deduplicates and loads only one copy.
 
 ### Build setup (per mod)
 
+Three pieces work together: srcDir for dev, JarJar for production, composite build for zero-publish workflow.
+
 ```groovy
+// settings.gradle -- resolve KwahsCore from source (no publishToMavenLocal needed)
+includeBuild('../KwahsCore')
+
 // gradle.properties
 kwahscore_path=../KwahsCore
 
 // build.gradle
-sourceSets.main.java.srcDir "${kwahscore_path}/src/main/java"
+sourceSets.main.java.srcDir "${kwahscore_path}/src/main/java"  // dev runtime (runClient)
+
+dependencies {
+    jarJar("xyz.kwahson.core:kwahs_core:[0.1.0,1.0.0)") {     // production jar embedding
+        version { prefer '0.1.0' }
+    }
+}
+
+// Exclude KwahsCore classes from the main jar -- JarJar embeds them as a nested jar
+tasks.named('jar', Jar) {
+    exclude 'xyz/kwahson/core/**'
+}
 ```
 
-That's it. The srcDir compiles KwahsCore source directly into the mod's jar as part of its source set.
+### How it works
 
-**Do NOT use jarJar for KwahsCore.** jarJar embeds a separate jar that NeoForge loads as its own module. When multiple mods each shade KwahsCore via srcDir, the jarJar'd copy creates a duplicate module exporting the same package, which crashes the Java module system with `ResolutionException: Modules X and kwahs.core export package xyz.kwahson.core`.
+| Context | How KwahsCore loads | Notes |
+|---|---|---|
+| Dev compile | Composite build (`includeBuild`) resolves from source | No publishing needed |
+| Dev runtime (`runClient`) | srcDir compiles into the mod's source set | Single mod, no conflict |
+| Production jar | JarJar embeds as `META-INF/jarjar/kwahs_core-*.jar` | Classes excluded from main jar |
+| Multiple mods installed | NeoForge deduplicates JarJar'd copies, loads one | Fixes the `ResolutionException` |
 
-### Why srcDir instead of composite build
+### KwahsCore jar requirements
 
-NeoForge's module classloader only loads classes registered through `sourceSet()` in the `mods {}` block. Composite builds put dependencies on the compile classpath but not on the module path at runtime. The srcDir approach compiles library source as part of the mod's source set, so everything is in the same module.
+KwahsCore's `build.gradle` must declare `Automatic-Module-Name` in its manifest. JarJar requires this for embedding.
+
+```groovy
+tasks.named('jar', Jar) {
+    manifest {
+        attributes 'Automatic-Module-Name': 'kwahs.core'
+    }
+}
+```
+
+### Why srcDir is kept alongside JarJar
+
+NeoForge's module classloader only loads classes registered through `sourceSet()` in the `mods {}` block during dev runs. Composite build dependencies land on the compile classpath but not the module path at runtime. srcDir puts the library source in the mod's source set so `runClient` works. The `exclude` on the jar task prevents these classes from reaching the production jar (JarJar handles that).
 
 ## Config Patterns
 
