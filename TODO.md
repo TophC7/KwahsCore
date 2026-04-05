@@ -3,7 +3,7 @@
 ## Config
 
 - [x] `validateOrReset` should accept `ModConfig.Type` to build the correct filename (currently hardcodes `-client.toml`, breaks for COMMON and SERVER configs)
-- [ ] Deprecate `SafeConfig.getFloat` in favor of `getDouble` (API-breaking for consumers still using getFloat)
+- [x] Deprecate `SafeConfig.getFloat` in favor of `getDouble` (marked @Deprecated, removal deferred to 1.0)
 - [ ] Payload helpers: generic empty/single-value payload factories + registration helper
 
 ## Reorderable List

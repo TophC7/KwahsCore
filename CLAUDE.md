@@ -101,7 +101,7 @@ Never call `.get()` directly on config values. Always use SafeConfig wrappers:
 ```java
 SafeConfig.getBool(MY_BOOL, defaultValue)
 SafeConfig.getInt(MY_INT, defaultValue)
-SafeConfig.getFloat(MY_DOUBLE, defaultValue)
+SafeConfig.getDouble(MY_DOUBLE, defaultValue)
 SafeConfig.getEnum(MY_ENUM, defaultValue)
 SafeConfig.get(MY_LIST, List.of())
 ```

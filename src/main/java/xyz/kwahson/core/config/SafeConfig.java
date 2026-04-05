@@ -119,7 +119,13 @@ public final class SafeConfig {
     }
   }
 
-  /** Reads a double config value safely, returning as float. */
+  /**
+   * Reads a double config value safely, returning as float.
+   *
+   * @deprecated Use {@link #getDouble} for full precision, or keep this where
+   *             float is intentional (e.g. render params). Will be removed in 1.0.
+   */
+  @Deprecated
   public static float getFloat(ModConfigSpec.DoubleValue value, float fallback) {
     try {
       return value.get().floatValue();
