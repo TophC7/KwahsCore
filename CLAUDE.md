@@ -27,8 +27,11 @@ kwahscore_path=../KwahsCore
 sourceSets.main.java.srcDir "${kwahscore_path}/src/main/java"  // dev runtime (runClient)
 
 dependencies {
-    jarJar("xyz.kwahson.core:kwahs_core:[0.1.0,1.0.0)") {     // production jar embedding
-        version { prefer '0.1.0' }
+    // Version range: minimum version this mod needs, up to (but not including) 1.0.0.
+    // Bump the minimum when this mod uses new KwahsCore API.
+    // NeoForge picks the highest version available across all installed mods.
+    jarJar("xyz.kwahson.core:kwahs_core:[0.2.0,1.0.0)") {
+        version { prefer '0.2.0' }
     }
 }
 
