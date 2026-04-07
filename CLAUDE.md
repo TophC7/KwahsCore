@@ -162,3 +162,12 @@ Each mod with a Nix flake has a "Run Client" VS Code task:
 ```
 nix develop --command bash -c 'gradle createLaunchScripts && bash build/moddev/runClient.sh'
 ```
+
+## Building Mods
+
+For mod validation builds, prefer running from the mod directory:
+```
+nix run
+```
+
+This produces the jar in `dist/`, which is the artifact used for testing.
