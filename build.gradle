@@ -17,6 +17,13 @@ group = mod_group_id
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+repositories {
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+}
+
 neoForge {
     version = project.neo_version
 
@@ -24,6 +31,14 @@ neoForge {
         mappingsVersion = project.parchment_mappings_version
         minecraftVersion = project.parchment_minecraft_version
     }
+}
+
+dependencies {
+    // optional compat layer for Sophisticated Storage. Compile-only.
+    // Consumers gate every reference behind SSCompat.isLoaded() so the SS-touching
+    // classes never link at runtime when SS is absent.
+    compileOnly "maven.modrinth:sophisticated-core:${project.sophisticated_core_version}"
+    compileOnly "maven.modrinth:sophisticated-storage:${project.sophisticated_storage_version}"
 }
 
 // Required for JarJar embedding: jars must declare a module name
