@@ -17,6 +17,11 @@ group = mod_group_id
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+// optional compat layers live in their own srcDir so consuming mods can opt in.
+// KwahsCore itself compiles every layer (compileOnly deps below) and ships them
+// in the published jar so JarJar embedding still works for mods that need them.
+sourceSets.main.java.srcDir 'src/compat/java'
+
 repositories {
     maven {
         url = 'https://api.modrinth.com/maven'

@@ -20,8 +20,12 @@ dist/
 *~
 .DS_Store
 .history/
+.vscode/launch.json
+.eclipse/
 
 # Nix
 .direnv/
+
+# Project specific
+run/
 .claude/
-.vscode/launch.json

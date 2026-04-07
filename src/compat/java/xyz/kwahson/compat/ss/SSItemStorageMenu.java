@@ -1,4 +1,4 @@
-package xyz.kwahson.core.compat.ss;
+package xyz.kwahson.compat.ss;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;

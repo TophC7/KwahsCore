@@ -1,4 +1,4 @@
-package xyz.kwahson.core.compat.ss;
+package xyz.kwahson.compat.ss;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
