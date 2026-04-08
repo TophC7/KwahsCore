@@ -35,9 +35,10 @@ dependencies {
     }
 }
 
-// Exclude KwahsCore classes from the main jar -- JarJar embeds them as a nested jar
+// Exclude all KwahsCore classes from the main jar -- JarJar embeds them as a nested jar.
+// Must be xyz/kwahson/** (not xyz/kwahson/core/**) to cover both core and compat packages.
 tasks.named('jar', Jar) {
-    exclude 'xyz/kwahson/core/**'
+    exclude 'xyz/kwahson/**'
 }
 ```
 
