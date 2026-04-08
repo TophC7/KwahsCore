@@ -7,6 +7,8 @@ modId = "kwahs_core"
 version = "${file.jarVersion}"
 displayName = "Kwahs Core"
 description = "Shared library for Kwahson mods."
+author = "Kwahson"
+displayURL = "https://github.com/tophc7/KwahsCore"
 
 [[dependencies.kwahs_core]]
 modId = "neoforge"
