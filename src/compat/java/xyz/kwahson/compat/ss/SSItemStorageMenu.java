@@ -1,6 +1,7 @@
 package xyz.kwahson.compat.ss;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
@@ -9,6 +10,8 @@ import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.UpgradeHandler;
 import net.p3pp3rf1y.sophisticatedcore.util.NoopStorageWrapper;
+import net.p3pp3rf1y.sophisticatedstorage.block.ItemContentsStorage;
+import net.p3pp3rf1y.sophisticatedstorage.item.StackStorageWrapper;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
@@ -39,12 +42,18 @@ import java.util.function.Supplier;
  * <p>
  * <strong>Loading rule:</strong> this class hard-links SS types. Never reference it
  * unless {@link SSCompat#isLoaded()} returns true.
- * TODO: persistence hook for sort/inventory changes. SS's StackStorageWrapper stores
- * contents in ItemContentsStorage (a SavedData) keyed by UUID. Direct mutations to the
- * wrapper's contents tag bypass SavedData.setDirty(), so sort and slot edits may not
- * survive a level save. The fix likely lives in a server-side mutation hook that calls
- * {@code ItemContentsStorage.get().setDirty()} after each menu mutation. Verify the
- * exact failure mode with a debugger before implementing.
+ * <p>
+ * <strong>Persistence:</strong> {@link StackStorageWrapper} is built with three
+ * no-op save callbacks (verified by SS 1.5.31 decompile), so any mutation to its
+ * contents -- sort, slot edits, settings, upgrade installs -- never reaches
+ * {@link ItemContentsStorage#setDirty()}. Without that flag, vanilla's
+ * {@code DimensionDataStorage} skips the {@code SavedData} on save and the
+ * changes vanish on next world reload. The wrapper's in-memory {@code CompoundTag}
+ * is the same reference held by {@link ItemContentsStorage}, so we don't need
+ * to copy anything back -- only the dirty flag is missing. We override
+ * {@link #removed(Player)} to mark the storage dirty once when the menu closes
+ * server-side. Tick-driven mutations from {@code SSVirtualHost} are handled
+ * the same way at the end of any tick where upgrades ran.
  */
 public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorageWrapper> {
     private final Supplier<ItemStack> sourceSupplier;
@@ -126,5 +135,40 @@ public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorag
         if (openedRef != null && current != openedRef)
             return false;
         return true;
+    }
+
+    /**
+     * Persistence hook for menu-driven mutations.
+     *
+     * <p>SS routes every UI action -- sort, slot edit, settings change, upgrade
+     * install, color change -- through this menu. The wrapper's in-memory
+     * {@code CompoundTag} is the same reference {@link ItemContentsStorage}
+     * holds in its {@code storageContents} map, so any mutation made through
+     * the menu is already visible to the {@code SavedData} the moment it
+     * lands; the only thing missing is the dirty flag that tells
+     * {@code DimensionDataStorage} to write the {@code SavedData} on the next
+     * autosave.
+     *
+     * <p>We mark dirty once here on close, instead of every tick the menu is
+     * open, because the cost of the dirty flag is <em>not</em> a boolean
+     * assignment -- when {@code DimensionDataStorage} sees a dirty
+     * {@code SavedData} it serializes the entire {@code ItemContentsStorage}
+     * (every UUID -> contents pair across the whole world). Doing that on
+     * every autosave that touched a menu would cost the server I/O
+     * proportional to total-SS-inventory rather than actually-changed
+     * shulkers. Marking dirty once at close captures the full session in a
+     * single autosave write.
+     *
+     * <p><b>Crash window:</b> if the server crashes while the menu is still
+     * open, mutations made during the session are lost. Acceptable tradeoff
+     * for the I/O savings; users running mission-critical setups should close
+     * their menus periodically.
+     */
+    @Override
+    public void removed(Player playerArg) {
+        super.removed(playerArg);
+        if (playerArg instanceof ServerPlayer) {
+            ItemContentsStorage.get().setDirty();
+        }
     }
 }
