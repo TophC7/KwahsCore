@@ -72,52 +72,28 @@ upgrades below were intentionally left out of that pass.
 - **Hopper / Advanced Hopper** (`INeighborChangeListenerUpgrade`) -- requires
       neighbor block I/O. There is no neighbor for an item-form shulker.
 
-### Known persistence gaps (NOT fixed by the current hook)
+### Known persistence gaps
 
-The `SSItemStorageMenu.removed()` + `SSVirtualHost.tick()` `setDirty()` hooks
-persist any mutation that lands in the shared contents NBT by reference.
-Contents, sort item order, slot edits, upgrade install/remove (at the upgrade
-slot level), and tickable upgrade contents mutations all work -- with a caveat:
-`SSVirtualHost.tick()` rate-limits `setDirty()` to once per ~5 seconds per host
-to avoid forcing a full `ItemContentsStorage` serialize on every autosave cycle.
-This means a server crash can lose up to ~5 seconds of in-flight upgrade
-mutations (magnet pickups, feeding consumption, etc.). `invalidate()` flushes
-eagerly, so clean session boundaries (logout, respawn, swap) don't lose
-anything. The following do NOT work and require a deeper fix:
+The `SSPersistence` class (added alongside this TODO) fixes the two
+critical persistence bugs through pre-seeding and explicit save-back:
 
-- [ ] **Settings / preferences don't persist for stack wrappers.** Affects
-      memory slots (item-locked slots), no-sort slots, item-display
-      categories, render info overlays, `sortBy` preference, open tab ID,
-      main/accent colors. Root cause: `StorageWrapper`'s constructor builds
-      `SettingsHandler` with a captured reference to `settingsNbt`, but for
-      `StackStorageWrapper` that reference is always an orphan `CompoundTag`
-      -- either the field initializer (first-open, no UUID) or
-      `tag.getCompound("settings")` returning a new empty compound because
-      the persisted "settings" key is missing. Mutations land in the orphan
-      and are never linked to `ItemContentsStorage`. `SettingsHandler.reloadFrom`
-      does NOT rewire -- it just calls each category's reloadFrom, and the
-      categories' save-back lambdas still capture the original orphan. Fix
-      options: (a) mixin into `StorageWrapper` ctor to swap callbacks, (b)
-      reflection patch to rebuild the settings handler with a live ref, (c)
-      pre-seed "settings" and "renderInfo" compounds in the storageWrapper
-      tag BEFORE `StackStorageWrapper.fromStack` runs (requires force-
-      generating a UUID for fresh shulkers that have never been opened).
+- [x] **Settings / preferences** (memory slots, no-sort, render info,
+      sortBy, openTabId, colors) -- fixed via `ensureStorageCompoundsExist()`
+      pre-seeding "settings" and "renderInfo" as live children in the wrapper
+      tag before `fromStack()` runs. Scalar fields (sortBy, openTabId, colors)
+      are written back explicitly in `saveWrapperState()` using public getters.
 
-- [ ] **Upgrade configuration tabs reset on menu close.** Affects filter
-      blocklists/allowlists on tickable upgrades (magnet filter, feeding
-      filter, cooking input filter, etc.) and every other per-upgrade config
-      that lives on the upgrade ItemStack's data components. Root cause: the
-      user's UI mutation lands on the in-memory `ItemStack` held by the
-      `UpgradeHandler`'s slot list, but the `UpgradeHandler` never
-      re-serializes modified stacks back into its backing NBT because the
-      no-op save handler fed to `StackStorageWrapper` never triggers a
-      serialize. Even with `setDirty()` on `ItemContentsStorage`, the
-      persisted tag still has the stale pre-mutation upgrade stacks because
-      the handler's in-memory stacks never got written back. Same family of
-      bug as the settings issue but one layer deeper -- fixing it requires
-      either forcing `UpgradeHandler.saveInventory()` (or equivalent) on
-      every mutation, or replacing the no-op save handler with one that
-      triggers re-serialization before `setDirty()`.
+- [x] **Upgrade configuration tabs** (filter allowlists, feeding configs,
+      etc.) -- fixed via `saveWrapperState()` calling
+      `UpgradeHandler.saveInventory()` on session boundaries (menu close,
+      host invalidation, dirty-interval tick). This serializes the in-memory
+      upgrade stacks (including modified data components) into the live
+      contents compound.
+
+Remaining caveat: `SSVirtualHost.tick()` rate-limits `saveWrapperState()`
+to once per ~5 seconds per host. A server crash can lose up to ~5 seconds
+of in-flight upgrade mutations. `invalidate()` flushes eagerly, so clean
+session boundaries (logout, respawn, swap) don't lose anything.
 
 ### Architectural followups
 

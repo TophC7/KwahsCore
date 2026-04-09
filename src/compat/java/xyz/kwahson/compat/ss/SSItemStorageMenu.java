@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
+import net.p3pp3rf1y.sophisticatedcore.common.gui.ISyncedContainer;
 import net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.UpgradeHandler;
 import net.p3pp3rf1y.sophisticatedcore.util.NoopStorageWrapper;
@@ -55,7 +56,7 @@ import java.util.function.Supplier;
  * server-side. Tick-driven mutations from {@code SSVirtualHost} are handled
  * the same way at the end of any tick where upgrades ran.
  */
-public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorageWrapper> {
+public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorageWrapper> implements ISyncedContainer {
     private final Supplier<ItemStack> sourceSupplier;
     // exact ItemStack reference we opened the menu with. Used as a tamper detector
     // on save/close paths. Null when subclass tracks identity differently (e.g. boats).
@@ -100,7 +101,9 @@ public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorag
     protected StorageUpgradeSlot instantiateUpgradeSlot(UpgradeHandler handler, int slot) { return new StorageUpgradeSlot(handler, slot); }
 
     /**
-     * Settings UI requires a BlockPos. No-op for item-based storage.
+     * No-op for now. A proper item-form settings menu requires a custom
+     * SettingsContainerMenu subclass + screen + MenuType registration per
+     * consuming mod. Deferred -- see TODO.md.
      */
     @Override
     public void openSettings() {}
@@ -168,7 +171,7 @@ public abstract class SSItemStorageMenu extends StorageContainerMenuBase<IStorag
     public void removed(Player playerArg) {
         super.removed(playerArg);
         if (playerArg instanceof ServerPlayer) {
-            ItemContentsStorage.get().setDirty();
+            SSPersistence.saveWrapperState(getStorageWrapper());
         }
     }
 }

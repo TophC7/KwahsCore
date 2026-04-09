@@ -8,7 +8,6 @@ import net.minecraft.world.level.Level;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.ITickableUpgrade;
 import net.p3pp3rf1y.sophisticatedstorage.block.ItemContentsStorage;
-import net.p3pp3rf1y.sophisticatedstorage.item.StackStorageWrapper;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -152,7 +151,7 @@ public final class SSVirtualHost {
         // identity, so the rebuilt wrapper for the same stack is actually the
         // same instance the rest of SS will see. No risk of duelling wrappers.
         if (source != lastSourceRef) {
-            cachedWrapper = StackStorageWrapper.fromStack(level.registryAccess(), source);
+            cachedWrapper = SSPersistence.createWrapper(level.registryAccess(), source);
             lastSourceRef = source;
         }
 
@@ -179,7 +178,7 @@ public final class SSVirtualHost {
         // so logout/respawn/swap never lose pending mutations.
         if (++ticksSinceDirty >= DIRTY_INTERVAL_TICKS) {
             ticksSinceDirty = 0;
-            ItemContentsStorage.get().setDirty();
+            SSPersistence.flushUpgradeState(cachedWrapper);
         }
     }
 
@@ -191,10 +190,10 @@ public final class SSVirtualHost {
      * {@code setDirty()} aren't lost. Cheap; safe to call when nothing is cached.
      */
     public void invalidate() {
-        if (ticksSinceDirty > 0) {
-            ItemContentsStorage.get().setDirty();
-            ticksSinceDirty = 0;
+        if (cachedWrapper != null && ticksSinceDirty > 0) {
+            SSPersistence.saveWrapperState(cachedWrapper);
         }
+        ticksSinceDirty = 0;
         cachedWrapper = null;
         lastSourceRef = ItemStack.EMPTY;
     }
